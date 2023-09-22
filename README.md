@@ -1,6 +1,6 @@
 # LabScanner
 
-LabScanner is a Python application designed to extract and analyze text from lab test reports in PDF format.
+LabScanner is a python application designed to extract and analyze text from lab test reports in PDF format.
 
 ## Features
 
