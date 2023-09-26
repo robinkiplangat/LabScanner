@@ -4,12 +4,16 @@ from languagetools import summarizer
 import openai
 import pdfplumber
 import ocrspace
+from langchain import OpenAI
+from langchain.docstore.document import Document
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.chains.summarize import load_summarize_chain
 import json
 import modal
 from dotenv import load_dotenv
 
 load_dotenv()
-openai.api_key = os.getenv('OpenAI_API_KEY')
+# openai.api_key = os.getenv('OpenAI_API_KEY')
 ocr_space_api_key = os.getenv('OCR_Space_API')
 
 
@@ -72,8 +76,9 @@ def save_text_on_doc(text):
 # Extract the details from the of the Lab Report
 
 @stub.function(secret=modal.Secret.from_name("openai.api_key"))
-def get_report_details(text):
+def get_report_details(text, openai_api_key):
     import openai
+    openai.api_key = openai_api_key
     instructPrompt = """ You will be provided with text extracted from a Lab Report.
     Write a concise and summary that captures the key points and return the output info as a json object
     Please ensure You have understood the context and extract the key details extracted from the lab test report.
@@ -101,19 +106,23 @@ def get_report_details(text):
 
 # Create a summary of the report
 @stub.function(secret=modal.Secret.from_name("openai.api_key"))
-def report_summary(text):
-    OpenAI_API_KEY = openai.api_key
-    labReportSummary = summarizer.summarize(text)
-
-    return labReportSummary
+def generate_summary(text,openai_api_key):
+    # Instantiate the LLM model
+    llm = OpenAI(temperature=0, openai_api_key=openai_api_key)
+    # Split text
+    text_splitter = CharacterTextSplitter()
+    texts = text_splitter.split_text(text)
+    # Create multiple documents
+    docs = [Document(page_content=t) for t in texts]
+    # Text summarization
+    chain = load_summarize_chain(llm, chain_type='map_reduce')
+    return chain.run(docs)
 
 @stub.function(secret=modal.Secret.from_name("openai.api_key"))
-def lab_summary(file_obj):
-    openai.api_key = os.getenv('OpenAI_API_KEY')
-    OPENAI_API_KEY = openai.api_key
+def lab_summary(file_obj, openai_api_key):
     text = extract_text_from_pdf(file_obj)
-    repo_info = get_report_details(text)
-    repo_summary = report_summary(text)
+    repo_info = get_report_details(text, openai_api_key)
+    repo_summary = generate_summary(text, openai_api_key)
 
     return repo_info, repo_summary
 
