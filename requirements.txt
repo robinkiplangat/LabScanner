@@ -1,3 +1,4 @@
+langchain==0.0.301
 languagetools==0.0.3
 modal==0.52.3535
 ocrspace==2.3.0
